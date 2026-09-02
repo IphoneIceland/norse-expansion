@@ -593,7 +593,15 @@ function quatFor(vLon,vLat){
 }
 let centerLon=-15, centerLat=62, ctLon=-15, ctLat=62, dragging=false;
 // where each direction button flies the globe to (lat,lon)
-const ARC_FOCUS = { N:[63,-11], W:[53,-5], S:[39,6], E:[49,33], HOME:[60,11] }; // N centred to show Norway→Iceland
+// v39: N was framed [63,-11] "to show Norway→Iceland", which is exactly the
+// problem — the North arc actually runs from Norway (+12) to Baffin Island
+// (-70), 81 degrees of longitude, the widest of the five. Centred at -11,
+// Greenland and Vinland were squashed onto the western limb or past it, so
+// selecting North appeared not to reach them at all. Re-centred on the true
+// midpoint of the arc's own data, and pulled the camera back far enough for
+// 81 degrees to fit. The other four spans (16-50 deg) fit fine at 300.
+const ARC_FOCUS = { N:[58,-29], W:[53,-5], S:[39,6], E:[49,33], HOME:[60,11] };
+const ARC_ZOOM  = { N:360,      W:300,     S:300,    E:315,     HOME:300 };
 function orient(){ group.quaternion.copy(quatFor(centerLon,centerLat)); }
 function projectDir(dir,quat){ const w=dir.clone().applyQuaternion(quat).multiplyScalar(R);
   const v=w.clone().project(camera); return [(v.x+1)/2*W,(1-(v.y+1)/2)*H,w.z]; }
@@ -1079,7 +1087,7 @@ document.querySelectorAll(".tool").forEach(t=>t.addEventListener("click",()=>{
   if(t.dataset.routes){ showRoutes=!showRoutes; t.classList.toggle("on",showRoutes); }
   else if(t.dataset.realms){ showRealms=!showRealms; t.classList.toggle("on",showRealms); }
   else { const a=t.dataset.arc; ARCS[a]=!ARCS[a]; t.classList.toggle("on",ARCS[a]);
-    if(ARCS[a] && ARC_FOCUS[a]){ ctLat=ARC_FOCUS[a][0]; ctLon=ARC_FOCUS[a][1]; zTarget=300; } } // fly to that region
+    if(ARCS[a] && ARC_FOCUS[a]){ ctLat=ARC_FOCUS[a][0]; ctLon=ARC_FOCUS[a][1]; zTarget=ARC_ZOOM[a]||300; } } // fly to that region, framed for its own span
   applyFilters();
   if(t.dataset.arc && ARCS[t.dataset.arc]) startSweep(t.dataset.arc); // play that sphere in date order
 }));
