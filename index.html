@@ -821,15 +821,20 @@ function arrow(a,b,col){ const ang=Math.atan2(b.y-a.y,b.x-a.x),L=8;
   rfx.lineTo(a.x+Math.cos(ang+2.55)*L,a.y+Math.sin(ang+2.55)*L);
   rfx.lineTo(a.x+Math.cos(ang-2.55)*L,a.y+Math.sin(ang-2.55)*L);
   rfx.closePath(); rfx.fill(); }
-// the single travelling arrow: a bit larger, white-edged so it reads on the line
-function glideArrow(a,b,col){ const ang=Math.atan2(b.y-a.y,b.x-a.x),L=11;
+// The travelling arrowhead at the head of a drawn route.
+// v39: it used to be L=11 with a 1.4px pure-white outline, which read as a fat
+// cartoon chevron sitting on top of the map. Now it is small, the route's own
+// colour, and edged in soft black instead of white so it still reads over pale
+// land without shouting. Direction is still legible; the arrow is furniture.
+function glideArrow(a,b,col){ const ang=Math.atan2(b.y-a.y,b.x-a.x),L=6;
   rfx.beginPath();
   rfx.moveTo(a.x+Math.cos(ang)*L, a.y+Math.sin(ang)*L);
-  rfx.lineTo(a.x+Math.cos(ang+2.5)*L, a.y+Math.sin(ang+2.5)*L);
-  rfx.lineTo(a.x+Math.cos(ang)*L*0.25, a.y+Math.sin(ang)*L*0.25);
-  rfx.lineTo(a.x+Math.cos(ang-2.5)*L, a.y+Math.sin(ang-2.5)*L);
+  rfx.lineTo(a.x+Math.cos(ang+2.42)*L, a.y+Math.sin(ang+2.42)*L);
+  rfx.lineTo(a.x+Math.cos(ang)*L*0.34, a.y+Math.sin(ang)*L*0.34);
+  rfx.lineTo(a.x+Math.cos(ang-2.42)*L, a.y+Math.sin(ang-2.42)*L);
   rfx.closePath();
-  rfx.fillStyle=col; rfx.fill(); rfx.lineWidth=1.4; rfx.strokeStyle="rgba(255,255,255,0.9)"; rfx.stroke(); }
+  rfx.fillStyle=col; rfx.fill();
+  rfx.lineWidth=0.7; rfx.strokeStyle="rgba(0,0,0,0.45)"; rfx.stroke(); }
 function label(x,y,t,col){ rfx.font="600 11px -apple-system,BlinkMacSystemFont,sans-serif";
   const w=rfx.measureText(t).width+14;
   rfx.fillStyle="rgba(8,12,20,0.66)"; roundRect(x-w/2,y-24,w,17,7); rfx.fill();
