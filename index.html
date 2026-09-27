@@ -466,6 +466,29 @@ html,body{margin:0;height:100%;overflow:hidden;background:#05070d;
   #otd{transition:opacity .2s;}
 }
 
+/* ══ Focus, so a keyboard user can see where they are ══════════════════════
+   The keyboard layer in globe3d.js put every control into the tab order; this
+   is the other half of that job. :focus-visible only, so a mouse click never
+   leaves a ring behind — it shows for the people who need it and nobody else.
+   Gold rather than the browser default blue, because the default is invisible
+   against a dark glass panel on a dark globe. */
+:where(.tool,.chip,.zbtn,#play,#legendBtn,#journeysBtn,.tcard,.craftbtn,
+       #card .x,#card .photo,#card .people .fig,#card .sites .site,
+       #themePanel .x2,#journeys .jrow,
+       #otd .x3,#otd .orow,#otd .omhdr,#q):focus-visible{
+  outline:2px solid var(--e);
+  outline-offset:2px;
+  border-radius:9px;
+  box-shadow:0 0 0 4px rgba(227,179,65,.22);
+}
+#otd .orow:focus-visible,#otd .omhdr:focus-visible{background:var(--hover-2);}
+/* the search box wraps its own input, so ring the box, not the bare field */
+#search:focus-within{outline:2px solid var(--e);outline-offset:2px;border-radius:9px;}
+#q:focus-visible{outline:none;box-shadow:none;}
+@media (prefers-reduced-motion:reduce){
+  :where(.tool,.chip,#otd .orow):focus-visible{transition:none;}
+}
+
 </style>
 </head>
 <body>
@@ -1588,7 +1611,14 @@ const OTD = (function(){
       if(narrow()){ closeCard(); SHEET.reset(rail); } else rail.scrollTop=0;
     }
     rail.classList.toggle("show",on);
+    rail.setAttribute("aria-hidden", on?"false":"true");
     tool.classList.toggle("on",on);
+    tool.setAttribute("aria-expanded", on?"true":"false");
+    /* Move the focus with the panel, and hand it back when the panel goes.
+       Without this a keyboard user opens the rail and their focus is still
+       parked on a button behind it. */
+    if(on){ const x=rail.querySelector(".x3"); if(x) setTimeout(()=>x.focus(),60); }
+    else if(document.activeElement && rail.contains(document.activeElement)) tool.focus();
     /* On a phone the site's theme parks the zoom/find column at right:8px,
        top:46% -- underneath this sheet. Move it out of the way.
        NOT via the site's own body.vg-list-open: update-norse.sh recomputes that
@@ -1620,6 +1650,80 @@ const OTD = (function(){
   const hits=onKey(TKEY), bdg=tool.querySelector(".bdg");
   if(hits.length && bdg){ bdg.textContent=hits.length; bdg.style.display="block"; }
   return { open:()=>setOpen(true), close:()=>setOpen(false), counts:{day:DAY.length,month:MONTHP.length,season:SEASON.length,year:YEARONLY,total:REG.length} };
+})();
+
+/* ══ Keyboard and screen readers ═══════════════════════════════════════════
+   Measured before it was written, which is the only reason it got written:
+   the entire app had exactly ONE focusable element — the search box. Not the
+   eight tools in the bar, not the seven era chips, not the zoom buttons, not
+   Play, not one of the eighty-nine rows in the calendar rail, not the card's
+   own close button. And Escape closed nothing. A globe you can only drive with
+   a mouse is a globe that a good number of the people who land on it cannot
+   use at all.
+
+   Everything below is additive. No click handler is touched; a key press is
+   simply turned into the click those handlers already listen for. The globe
+   itself stays a pointer thing — 291 markers in the tab order would be worse
+   than useless — so the way in from the keyboard is the search box and the
+   calendar rail, both of which can reach any card on the map.              */
+(function(){
+  const LIVE = [".tool",".chip",".zbtn","#play","#legendBtn","#journeysBtn",
+                "#card .x","#card .people .fig","#card .sites .site",
+                "#themePanel .x2",".tcard","#journeys .jrow",
+                "#otd .x3","#otd .orow","#otd .omhdr"];
+  const LABEL = {zin:"Zoom in", zout:"Zoom out", recenter:"Recentre on the North Atlantic",
+                 play:"Play the expansion through time", otdTool:"On this day",
+                 cultureTool:"Life and Culture", legendBtn:"Legend", journeysBtn:"Journeys"};
+  function arm(el){
+    if(!el || el.__armed) return; el.__armed = true;
+    if(!el.hasAttribute("tabindex")) el.tabIndex = 0;
+    if(!el.getAttribute("role") && !/^(A|BUTTON|INPUT|SELECT|TEXTAREA)$/.test(el.tagName))
+      el.setAttribute("role","button");
+    if(el.id && LABEL[el.id] && !el.getAttribute("aria-label")) el.setAttribute("aria-label", LABEL[el.id]);
+    if(/✕|✖|×/.test(el.textContent||"") && !el.getAttribute("aria-label")) el.setAttribute("aria-label","Close");
+  }
+  LIVE.forEach(sel => document.querySelectorAll(sel).forEach(arm));
+
+  /* Enter and Space act like a tap. Delegated, so anything rendered later is
+     covered without a second pass. */
+  document.addEventListener("keydown", e => {
+    if(e.key!=="Enter" && e.key!==" " && e.key!=="Spacebar") return;
+    const t = e.target;
+    if(!t || !t.matches || t.tagName==="INPUT" || t.tagName==="TEXTAREA") return;
+    if(!LIVE.some(sel => t.matches(sel))) return;
+    e.preventDefault(); arm(t); t.click();
+  });
+
+  /* Escape shuts the topmost thing, in the order a reader would expect. */
+  document.addEventListener("keydown", e => {
+    if(e.key!=="Escape" && e.key!=="Esc") return;
+    const rail = document.getElementById("otd"), tp = document.getElementById("themePanel"),
+          lg = document.getElementById("legend"), jn = document.getElementById("journeys");
+    if(rail && rail.classList.contains("show")){ document.getElementById("otdTool").click(); return; }
+    if(tp && tp.classList.contains("show")){ const x=tp.querySelector(".x2"); if(x) x.click(); return; }
+    if(lg && lg.classList.contains("show")){ lg.classList.remove("show"); return; }
+    if(jn && jn.classList.contains("show")){ jn.classList.remove("show"); return; }
+    if(card.classList.contains("show")) closeCard();
+  });
+
+  /* Landmarks, so a screen reader can list the furniture instead of reading
+     the whole page to find it. */
+  const mark = (id, role, label) => { const el=document.getElementById(id); if(!el) return;
+    if(!el.getAttribute("role")) el.setAttribute("role", role);
+    if(!el.getAttribute("aria-label")) el.setAttribute("aria-label", label); };
+  mark("otd","region","On this day — the calendar");
+  mark("card","region","Card details");
+  mark("bar","toolbar","Directions, routes, realms and panels");
+  mark("eras","toolbar","Era filters");
+  mark("timeline","group","Playback through time");
+  mark("bl-controls","group","Zoom, recentre and find");
+  mark("themePanel","region","Life and Culture");
+  mark("legend","region","Legend");
+  mark("journeys","region","Journeys");
+  const otd=document.getElementById("otd");
+  if(otd) otd.setAttribute("aria-hidden","true");
+  const q=document.getElementById("q");
+  if(q && !q.getAttribute("aria-label")) q.setAttribute("aria-label","Find a place, battle, route or person");
 })();
 
 // scale the corner/edge menus together so they never overlap on smaller windows
